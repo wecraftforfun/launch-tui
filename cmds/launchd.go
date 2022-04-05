@@ -127,12 +127,39 @@ func GetStatus(label string) tea.Cmd {
 	}
 }
 
-func Load() tea.Msg {
-	return nil
+func Load(label string) tea.Msg {
+	home, _ := os.UserHomeDir()
+	userId := strconv.Itoa(os.Getuid())
+	return func() tea.Msg {
+		cmd := exec.Command("launchctl", "bootstrap", "gui/"+userId, path.Join(home, "Library", "LaunchAgents", label+".plist"))
+		err := cmd.Run()
+		if err != nil {
+			return models.ErrorMessage{
+				Err: err,
+			}
+		}
+		return models.CommandSuccessFullMessage{
+			Cmd:   "load",
+			Label: label,
+		}
+	}
 }
 
-func Unload() tea.Msg {
-	return nil
+func Unload(label string) tea.Msg {
+	userId := strconv.Itoa(os.Getuid())
+	return func() tea.Msg {
+		cmd := exec.Command("launchctl", "bootout", "gui/"+userId+"/"+label)
+		err := cmd.Run()
+		if err != nil {
+			return models.ErrorMessage{
+				Err: err,
+			}
+		}
+		return models.CommandSuccessFullMessage{
+			Cmd:   "unload",
+			Label: label,
+		}
+	}
 }
 
 // Stop use launchctl to stop the specified Agent.
