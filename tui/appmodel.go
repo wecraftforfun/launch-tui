@@ -20,6 +20,7 @@ var (
 )
 
 type AppModel struct {
+	state         models.State
 	status        string
 	isSuccessfull bool
 	appKeys       appKeyMap
@@ -57,6 +58,7 @@ func InitialModel() AppModel {
 		appKeys:      *newAppKeyMap(),
 		listKeys:     newListKeyMap(),
 		delegateKeys: *newDelegateKeymap(),
+		state:        models.List,
 		list:         list.New(nil, NewListDelegate(newDelegateKeymap()), 1300, 20),
 	}
 	m.list.SetShowHelp(false)
@@ -65,7 +67,6 @@ func InitialModel() AppModel {
 }
 
 func (m AppModel) Init() tea.Cmd {
-	// Just return `nil`, which means "no I/O right now, please."
 	return cmds.List
 }
 
@@ -75,6 +76,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for _, v := range msg.List {
 			m.list.InsertItem(len(m.list.Items()), list.Item(v))
 		}
+		UpdateEnabledKeyOnListScroll(&m)
 	case models.ErrorMessage:
 		m.status = fmt.Sprintf("Oops ! got an error : %s .", msg.Err.Error())
 	case models.CommandSuccessFullMessage:
@@ -86,9 +88,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for i, v := range m.list.Items() {
 			if v.(models.Process).Label == msg.Process.Label {
 				cmd := m.list.SetItem(i, list.Item(msg.Process))
+				UpdateEnabledKeyOnListScroll(&m)
 				return tea.Model(m), cmd
 			}
 		}
+
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.listKeys.up):
@@ -107,11 +111,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			label := m.list.Items()[m.list.Cursor()].(models.Process).Label
 			return tea.Model(m), cmds.Start(label)
 		case key.Matches(msg, m.delegateKeys.stopItem):
+			label := m.list.Items()[m.list.Cursor()].(models.Process).Label
+			return tea.Model(m), cmds.Stop(label)
 		case key.Matches(msg, m.delegateKeys.deleteItem):
 		case key.Matches(msg, m.appKeys.quit):
 			return tea.Model(m), tea.Quit
 		}
 	}
+	m.status = ""
+	m.isSuccessfull = false
 	return tea.Model(m), nil
 }
 
@@ -137,17 +145,22 @@ func UpdateEnabledKeyOnListScroll(m *AppModel) {
 
 func (m AppModel) View() string {
 	s := ""
-	s += m.list.View()
-	s += "\n" + m.help.ShortHelpView(append(m.delegateKeys.ShortHelp(), m.listKeys.ShortHelp()...)) + "\n"
-	if m.status != "" {
-		s += "\n"
-		if m.isSuccessfull {
-			s += successStatusMessage.Render(m.status)
-		} else {
-			s += errorStatusMessage.Render(m.status)
+	switch m.state {
+	case models.List:
+		s += m.list.View()
+		s += "\n" + m.help.ShortHelpView(append(m.delegateKeys.ShortHelp(), m.listKeys.ShortHelp()...)) + "\n"
+		if m.status != "" {
+			s += "\n"
+			if m.isSuccessfull {
+				s += successStatusMessage.Render(m.status)
+			} else {
+				s += errorStatusMessage.Render(m.status)
+			}
+			s += "\n"
 		}
-		s += "\n"
+	case models.Form:
 	}
+
 	s += m.help.View(m.appKeys)
 	return s
 }
