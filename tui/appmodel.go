@@ -1,37 +1,25 @@
 package tui
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/wecraftforfun/launch-tui/cmds"
 	"github.com/wecraftforfun/launch-tui/models"
-)
-
-var (
-	baseStyle                           = lipgloss.NewStyle().Padding(0).Margin(0)
-	successStatusMessage lipgloss.Style = baseStyle.Copy().Background(lipgloss.Color("#45A600"))
-	errorStatusMessage                  = baseStyle.Copy().Background(lipgloss.Color("#FA0000"))
+	"github.com/wecraftforfun/launch-tui/tui/views"
 )
 
 type AppModel struct {
-	state         models.State
-	status        string
-	isSuccessfull bool
-	appKeys       appKeyMap
-	delegateKeys  delegateKeyMap
-	listKeys      listKeyMap
-	help          help.Model
-	list          list.Model
+	state   models.State
+	form    views.FormModel
+	appKeys *appKeyMap
+	help    help.Model
+	list    views.ListModel
 }
 
 type appKeyMap struct {
-	quit key.Binding
+	insertItem key.Binding
+	quit       key.Binding
 }
 
 func (k appKeyMap) ShortHelp() []key.Binding {
@@ -47,22 +35,26 @@ func (k appKeyMap) FullHelp() [][]key.Binding {
 }
 
 func newAppKeyMap() *appKeyMap {
-	return &appKeyMap{quit: key.NewBinding(
-		key.WithKeys("esc"),
-		key.WithHelp("esc", "Quit app"),
-	)}
+	return &appKeyMap{
+		quit: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "Quit app"),
+		),
+		insertItem: key.NewBinding(
+			key.WithKeys("a"),
+			key.WithHelp("a", "Add a new Agent/Daemon."),
+		),
+	}
 }
 
-func InitialModel() AppModel {
-	m := AppModel{
-		appKeys:      *newAppKeyMap(),
-		listKeys:     newListKeyMap(),
-		delegateKeys: *newDelegateKeymap(),
-		state:        models.List,
-		list:         list.New(nil, NewListDelegate(newDelegateKeymap()), 1300, 20),
+func InitialModel() *AppModel {
+	m := &AppModel{
+		appKeys: newAppKeyMap(),
+		state:   models.List,
+		list:    views.ListInitialModel(),
+		form:    views.FormInitialModel(),
 	}
-	m.list.SetShowHelp(false)
-	m.list.Title = "LaunchD Terminal User Interface"
+
 	return m
 }
 
@@ -71,76 +63,38 @@ func (m AppModel) Init() tea.Cmd {
 }
 
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
 	switch msg := msg.(type) {
-	case models.UpdateListMessage:
-		for _, v := range msg.List {
-			m.list.InsertItem(len(m.list.Items()), list.Item(v))
-		}
-		UpdateEnabledKeyOnListScroll(&m)
-	case models.ErrorMessage:
-		m.status = fmt.Sprintf("Oops ! got an error : %s .", msg.Err.Error())
-	case models.CommandSuccessFullMessage:
-		m.status = fmt.Sprintf("Command %s completed without errors for %s", msg.Cmd, msg.Label)
-		m.isSuccessfull = true
-		return tea.Model(m), cmds.GetStatus(msg.Label)
-	case models.UpdateProcessStatusMessage:
-		msg.Process.Label = strings.Trim(msg.Process.Label, "\n")
-		for i, v := range m.list.Items() {
-			if v.(models.Process).Label == msg.Process.Label {
-				cmd := m.list.SetItem(i, list.Item(msg.Process))
-				UpdateEnabledKeyOnListScroll(&m)
-				return tea.Model(m), cmd
-			}
-		}
-
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.listKeys.up):
-			m.list.CursorUp()
-			UpdateEnabledKeyOnListScroll(&m)
-		case key.Matches(msg, m.listKeys.down):
-			m.list.CursorDown()
-			UpdateEnabledKeyOnListScroll(&m)
-		case key.Matches(msg, m.listKeys.filterItem):
-			m.list.SetShowTitle(false)
-			m.list.SetShowFilter(true)
-			m.list.SetFilteringEnabled(true)
-		case key.Matches(msg, m.delegateKeys.loadItem):
-		case key.Matches(msg, m.delegateKeys.unloadItem):
-		case key.Matches(msg, m.delegateKeys.startItem):
-			label := m.list.Items()[m.list.Cursor()].(models.Process).Label
-			return tea.Model(m), cmds.Start(label)
-		case key.Matches(msg, m.delegateKeys.stopItem):
-			label := m.list.Items()[m.list.Cursor()].(models.Process).Label
-			return tea.Model(m), cmds.Stop(label)
-		case key.Matches(msg, m.delegateKeys.deleteItem):
 		case key.Matches(msg, m.appKeys.quit):
 			return tea.Model(m), tea.Quit
+		case key.Matches(msg, m.appKeys.insertItem):
+			m.state = models.Form
+			return tea.Model(m), nil
 		}
 	}
-	m.status = ""
-	m.isSuccessfull = false
-	return tea.Model(m), nil
-}
-
-func UpdateEnabledKeyOnListScroll(m *AppModel) {
-	currentProcess := m.list.Items()[m.list.Cursor()].(models.Process)
-	if currentProcess.IsLoaded {
-		m.delegateKeys.loadItem.SetEnabled(false)
-		m.delegateKeys.stopItem.SetEnabled(false)
-		m.delegateKeys.unloadItem.SetEnabled(true)
-	} else {
-		m.delegateKeys.unloadItem.SetEnabled(false)
-		m.delegateKeys.loadItem.SetEnabled(true)
-		m.delegateKeys.stopItem.SetEnabled(false)
+	switch m.state {
+	case models.List:
+		newList, newCmd := m.list.Update(msg)
+		listModel, ok := newList.(views.ListModel)
+		if !ok {
+			panic("Failed to assert")
+		}
+		m.list = listModel
+		cmd = newCmd
+	case models.Form:
+		newForm, newCmd := m.form.Update(msg)
+		formModel, ok := newForm.(views.FormModel)
+		if !ok {
+			panic("Failed to assert")
+		}
+		m.form = formModel
+		cmd = newCmd
 	}
-	if currentProcess.Pid != "-" {
-		m.delegateKeys.stopItem.SetEnabled(true)
-		m.delegateKeys.startItem.SetEnabled(false)
-	} else {
-		m.delegateKeys.stopItem.SetEnabled(false)
-		m.delegateKeys.startItem.SetEnabled(true)
-	}
+	cmds = append(cmds, cmd)
+	return tea.Model(m), tea.Batch(cmds...)
 }
 
 func (m AppModel) View() string {
@@ -148,19 +102,10 @@ func (m AppModel) View() string {
 	switch m.state {
 	case models.List:
 		s += m.list.View()
-		s += "\n" + m.help.ShortHelpView(append(m.delegateKeys.ShortHelp(), m.listKeys.ShortHelp()...)) + "\n"
-		if m.status != "" {
-			s += "\n"
-			if m.isSuccessfull {
-				s += successStatusMessage.Render(m.status)
-			} else {
-				s += errorStatusMessage.Render(m.status)
-			}
-			s += "\n"
-		}
-	case models.Form:
-	}
 
-	s += m.help.View(m.appKeys)
+	case models.Form:
+		s += "Form display"
+		s += m.form.View()
+	}
 	return s
 }

@@ -9,7 +9,9 @@ import (
 )
 
 func main() {
-	p := tea.NewProgram(tui.InitialModel(), tea.WithAltScreen())
+	test := tui.InitialModel()
+	p := tea.NewProgram(test, tea.WithAltScreen())
+	p.Start()
 	if err := p.Start(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
