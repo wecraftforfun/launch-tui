@@ -22,38 +22,38 @@ type ListModel struct {
 	status        string
 	isSuccessfull bool
 	list          list.Model
-	listKeys      models.ListKeyMap
-	delegateKeys  models.DelegateKeyMap
+	ListKeys      models.ListKeyMap
+	DelegateKeys  models.DelegateKeyMap
 }
 
 func UpdateEnabledKeyOnListScroll(m *ListModel) {
-	currentProcess := m.list.Items()[m.list.Cursor()].(models.Process)
+	currentProcess := m.list.SelectedItem().(models.Process)
+
 	if currentProcess.IsLoaded {
-		m.delegateKeys.LoadItem.SetEnabled(false)
-		m.delegateKeys.StopItem.SetEnabled(false)
-		m.delegateKeys.UnloadItem.SetEnabled(true)
+		m.DelegateKeys.LoadItem.SetEnabled(false)
+		m.DelegateKeys.UnloadItem.SetEnabled(true)
+		if currentProcess.Pid != "-" {
+			m.DelegateKeys.StopItem.SetEnabled(true)
+			m.DelegateKeys.StartItem.SetEnabled(false)
+		} else {
+			m.DelegateKeys.StopItem.SetEnabled(false)
+			m.DelegateKeys.StartItem.SetEnabled(true)
+		}
 	} else {
-		m.delegateKeys.UnloadItem.SetEnabled(false)
-		m.delegateKeys.LoadItem.SetEnabled(true)
-		m.delegateKeys.StopItem.SetEnabled(false)
-	}
-	if currentProcess.Pid != "-" {
-		m.delegateKeys.StopItem.SetEnabled(true)
-		m.delegateKeys.StartItem.SetEnabled(false)
-	} else {
-		m.delegateKeys.StopItem.SetEnabled(false)
-		m.delegateKeys.StartItem.SetEnabled(true)
+		m.DelegateKeys.UnloadItem.SetEnabled(false)
+		m.DelegateKeys.LoadItem.SetEnabled(true)
+		m.DelegateKeys.StopItem.SetEnabled(false)
+		m.DelegateKeys.StartItem.SetEnabled(false)
 	}
 }
 
 func ListInitialModel() ListModel {
-	delegateKeys := models.NewDelegateKeymap()
+	DelegateKeys := models.NewDelegateKeymap()
 	m := ListModel{
-		list:         list.New(nil, models.NewListDelegate(delegateKeys), 1300, 20),
-		delegateKeys: delegateKeys,
-		listKeys:     models.NewListKeyMap(),
+		list:         list.New(nil, models.NewListDelegate(DelegateKeys), 1300, 20),
+		DelegateKeys: DelegateKeys,
+		ListKeys:     models.NewListKeyMap(),
 	}
-
 	m.list.SetShowHelp(false)
 	m.list.Title = "LaunchD Terminal User Interface"
 	return m
@@ -83,25 +83,25 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.listKeys.Up):
+		case key.Matches(msg, m.ListKeys.Up):
 			m.list.CursorUp()
 			UpdateEnabledKeyOnListScroll(&m)
-		case key.Matches(msg, m.listKeys.Down):
+		case key.Matches(msg, m.ListKeys.Down):
 			m.list.CursorDown()
 			UpdateEnabledKeyOnListScroll(&m)
-		case key.Matches(msg, m.listKeys.FilterItem):
+		case key.Matches(msg, m.ListKeys.FilterItem):
 			m.list.SetShowTitle(false)
 			m.list.SetShowFilter(true)
 			m.list.SetFilteringEnabled(true)
-		case key.Matches(msg, m.delegateKeys.LoadItem):
-		case key.Matches(msg, m.delegateKeys.UnloadItem):
-		case key.Matches(msg, m.delegateKeys.StartItem):
+		case key.Matches(msg, m.DelegateKeys.LoadItem):
+		case key.Matches(msg, m.DelegateKeys.UnloadItem):
+		case key.Matches(msg, m.DelegateKeys.StartItem):
 			label := m.list.Items()[m.list.Cursor()].(models.Process).Label
 			return tea.Model(m), cmds.Start(label)
-		case key.Matches(msg, m.delegateKeys.StopItem):
+		case key.Matches(msg, m.DelegateKeys.StopItem):
 			label := m.list.Items()[m.list.Cursor()].(models.Process).Label
 			return tea.Model(m), cmds.Stop(label)
-		case key.Matches(msg, m.delegateKeys.DeleteItem):
+		case key.Matches(msg, m.DelegateKeys.DeleteItem):
 		}
 	}
 	return tea.Model(m), nil
@@ -112,8 +112,7 @@ func (m ListModel) Init() tea.Cmd {
 }
 
 func (m ListModel) View() string {
-	s := ""
-	s += m.list.View()
+	s := m.list.View()
 	if m.status != "" {
 		s += "\n"
 		if m.isSuccessfull {
@@ -123,6 +122,5 @@ func (m ListModel) View() string {
 		}
 		s += "\n"
 	}
-
 	return s
 }

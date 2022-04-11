@@ -53,6 +53,7 @@ func InitialModel() *AppModel {
 		state:   models.List,
 		list:    views.ListInitialModel(),
 		form:    views.FormInitialModel(),
+		help:    help.New(),
 	}
 
 	return m
@@ -102,10 +103,15 @@ func (m AppModel) View() string {
 	switch m.state {
 	case models.List:
 		s += m.list.View()
-
+		s += "\n"
+		s += m.help.View(m.list.ListKeys)
+		s += "\n"
+		s += m.help.View(m.list.DelegateKeys)
+		s += "\n"
 	case models.Form:
 		s += "Form display"
 		s += m.form.View()
 	}
+	s += m.help.View(m.appKeys)
 	return s
 }

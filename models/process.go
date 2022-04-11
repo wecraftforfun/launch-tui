@@ -1,6 +1,9 @@
 package models
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type Process struct {
 	Pid      string
@@ -24,4 +27,9 @@ func (p Process) Description() string {
 		return fmt.Sprintf("Agent is not currently running with Status %v.", p.Status)
 	}
 	return fmt.Sprintf("Agent is running with PID %v, and Status %v.", p.Pid, p.Status)
+}
+
+func (p Process) String() string {
+	b, _ := json.Marshal(p)
+	return string(b)
 }

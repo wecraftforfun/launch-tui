@@ -51,7 +51,6 @@ func List() tea.Msg {
 			delete(f, label)
 		}
 	}
-
 	for k := range f {
 		processes = append(processes, models.Process{
 			Pid:      "-",
@@ -60,7 +59,6 @@ func List() tea.Msg {
 			IsLoaded: false,
 		})
 	}
-
 	return models.UpdateListMessage{
 		List: processes,
 	}

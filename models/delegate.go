@@ -34,6 +34,8 @@ func (d DelegateKeyMap) ShortHelp() []key.Binding {
 		d.DeleteItem,
 		d.StartItem,
 		d.StopItem,
+		d.LoadItem,
+		d.UnloadItem,
 	}
 }
 

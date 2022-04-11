@@ -11,7 +11,7 @@ type ListKeyMap struct {
 }
 
 func (k ListKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.InsertItem, k.DeleteItem}
+	return []key.Binding{k.Up, k.Down}
 }
 
 // FullHelp returns keybindings for the expanded help view. It's part of the
