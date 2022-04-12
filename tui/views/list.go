@@ -81,6 +81,10 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}))
 			return tea.Model(m), cmd
 		}
+		if msg.Cmd == "delete" {
+			m.list.RemoveItem(m.list.Index())
+			return tea.Model(m), nil
+		}
 		return tea.Model(m), cmds.GetStatus(msg.Label)
 	case models.UpdateProcessStatusMessage:
 		msg.Process.Label = strings.Trim(msg.Process.Label, "\n")
@@ -92,7 +96,8 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.KeyMsg:
-		label := m.list.SelectedItem().(models.Process).Label
+		process := m.list.SelectedItem().(models.Process)
+		label := process.Label
 		switch {
 		case key.Matches(msg, m.ListKeys.Up):
 			m.list.CursorUp()
@@ -113,6 +118,7 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.DelegateKeys.StopItem):
 			return tea.Model(m), cmds.Stop(label)
 		case key.Matches(msg, m.DelegateKeys.DeleteItem):
+			return tea.Model(m), cmds.Delete(process)
 		}
 	}
 	return tea.Model(m), nil

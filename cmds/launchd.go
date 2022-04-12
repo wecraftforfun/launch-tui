@@ -179,6 +179,32 @@ func Stop(label string) tea.Cmd {
 }
 
 // Delete will completly remove the agent from the disk (by stopping it, unloading it then remove config file from FS)
-func Delete(label string) tea.Cmd {
-	return nil
+func Delete(p models.Process) tea.Cmd {
+	cmds := []tea.Cmd{}
+	if p.Pid != "-" {
+		cmds = append(cmds, Stop(p.Label))
+	}
+	if p.IsLoaded {
+		cmds = append(cmds, Unload(p.Label))
+	}
+	cmds = append(cmds, DeleteFile(p.Label))
+	return tea.Batch(cmds...)
+}
+
+func DeleteFile(label string) tea.Cmd {
+	return func() tea.Msg {
+		home, _ := os.UserHomeDir()
+
+		err := os.Remove(path.Join(home, "Library", "LaunchAgents", label+".plist"))
+
+		if err != nil {
+			return models.ErrorMessage{
+				Err: err,
+			}
+		}
+		return models.CommandSuccessFullMessage{
+			Cmd:   "delete",
+			Label: label,
+		}
+	}
 }
