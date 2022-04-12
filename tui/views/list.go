@@ -67,10 +67,20 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		UpdateEnabledKeyOnListScroll(&m)
 	case models.ErrorMessage:
+		m.isSuccessfull = false
 		m.status = fmt.Sprintf("Oops ! got an error : %s .", msg.Err.Error())
 	case models.CommandSuccessFullMessage:
 		m.status = fmt.Sprintf("Command %s completed without errors for %s", msg.Cmd, msg.Label)
 		m.isSuccessfull = true
+		if msg.Cmd == "unload" {
+			cmd := m.list.SetItem(m.list.Index(), list.Item(models.Process{
+				Label:    msg.Label,
+				IsLoaded: false,
+				Pid:      "-",
+				Status:   0,
+			}))
+			return tea.Model(m), cmd
+		}
 		return tea.Model(m), cmds.GetStatus(msg.Label)
 	case models.UpdateProcessStatusMessage:
 		msg.Process.Label = strings.Trim(msg.Process.Label, "\n")
@@ -82,6 +92,7 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.KeyMsg:
+		label := m.list.SelectedItem().(models.Process).Label
 		switch {
 		case key.Matches(msg, m.ListKeys.Up):
 			m.list.CursorUp()
@@ -94,12 +105,12 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list.SetShowFilter(true)
 			m.list.SetFilteringEnabled(true)
 		case key.Matches(msg, m.DelegateKeys.LoadItem):
+			return tea.Model(m), cmds.Load(label)
 		case key.Matches(msg, m.DelegateKeys.UnloadItem):
+			return tea.Model(m), cmds.Unload(label)
 		case key.Matches(msg, m.DelegateKeys.StartItem):
-			label := m.list.Items()[m.list.Cursor()].(models.Process).Label
 			return tea.Model(m), cmds.Start(label)
 		case key.Matches(msg, m.DelegateKeys.StopItem):
-			label := m.list.Items()[m.list.Cursor()].(models.Process).Label
 			return tea.Model(m), cmds.Stop(label)
 		case key.Matches(msg, m.DelegateKeys.DeleteItem):
 		}

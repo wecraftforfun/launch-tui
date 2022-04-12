@@ -125,7 +125,7 @@ func GetStatus(label string) tea.Cmd {
 	}
 }
 
-func Load(label string) tea.Msg {
+func Load(label string) tea.Cmd {
 	home, _ := os.UserHomeDir()
 	userId := strconv.Itoa(os.Getuid())
 	return func() tea.Msg {
@@ -143,7 +143,7 @@ func Load(label string) tea.Msg {
 	}
 }
 
-func Unload(label string) tea.Msg {
+func Unload(label string) tea.Cmd {
 	userId := strconv.Itoa(os.Getuid())
 	return func() tea.Msg {
 		cmd := exec.Command("launchctl", "bootout", "gui/"+userId+"/"+label)
@@ -176,4 +176,9 @@ func Stop(label string) tea.Cmd {
 		}
 	}
 
+}
+
+// Delete will completly remove the agent from the disk (by stopping it, unloading it then remove config file from FS)
+func Delete(label string) tea.Cmd {
+	return nil
 }
