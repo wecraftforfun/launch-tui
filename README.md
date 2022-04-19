@@ -23,3 +23,5 @@ then
 ### Planned
 
 - You can add a new agent using a user-friendly form that will create your `.plist` for you.
+
+![launch-tui](https://s7.gifyu.com/images/launch-tui983a665fb166e1c7.gif)
