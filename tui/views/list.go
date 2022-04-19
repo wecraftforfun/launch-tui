@@ -82,6 +82,7 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Pid:      "-",
 				Status:   0,
 			}))
+			UpdateEnabledKeyOnListScroll(&m)
 			return tea.Model(m), cmd
 		}
 		if msg.Cmd == "delete" {
